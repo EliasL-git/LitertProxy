@@ -431,3 +431,30 @@ app.post('/api/generate', async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+
+// List available models (Ollama-compatible simple endpoint)
+app.get('/api/models', (req, res) => {
+  const modelsEnv = (process.env.LITERT_MODELS || process.env.LITERT_MODEL || '').trim();
+  const list = modelsEnv ? modelsEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const models = list.map((m) => ({
+    id: m,
+    name: m,
+    description: `Proxy to LiteRT model ${m}`,
+    default: m === (process.env.LITERT_MODEL || '')
+  }));
+  res.json({ models });
+});
+
+// Ollama compatibility endpoints (common paths)
+app.get('/version', (req, res) => {
+  // Report a compatible Ollama version so clients that check version succeed
+  res.json({ version: process.env.OLLAMA_COMPAT_VERSION || '0.6.4' });
+});
+
+app.get('/models', (req, res) => {
+  // Mirror /api/models for Ollama-compatible clients
+  const modelsEnv = (process.env.LITERT_MODELS || process.env.LITERT_MODEL || '').trim();
+  const list = modelsEnv ? modelsEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const models = list.map((m) => ({ id: m, name: m, description: `Proxy to LiteRT model ${m}`, default: m === (process.env.LITERT_MODEL || '') }));
+  res.json(models);
+});

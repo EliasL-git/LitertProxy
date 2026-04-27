@@ -83,6 +83,22 @@ curl -N -X POST http://localhost:8080/api/generate \
   -d '{"model":"gemma-4-E2B-it.litertlm","stream": true,"prompt":"Say hi" }'
 ```
 
+Models endpoint
+
+GET `/api/models` returns a JSON list of models the gateway exposes. By default the gateway reads `LITERT_MODEL` (single) or `LITERT_MODELS` (comma-separated list) from the environment.
+
+Example:
+
+```bash
+curl http://localhost:8080/api/models
+```
+
+Response:
+
+```json
+{ "models": [ { "id": "gemma-4-E2B-it.litertlm", "name": "gemma-4-E2B-it.litertlm", "description": "Proxy to LiteRT model gemma-4-E2B-it.litertlm", "default": true } ] }
+```
+
 **Copilot integration (quickstart)**
 
 1) Run LitertProxy on your VM or local machine.
