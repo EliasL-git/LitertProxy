@@ -4,7 +4,8 @@
   "description": "Lightweight gateway proxy for LiteRT CLI",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "update": "git pull --ff-only origin main && npm ci"
   },
   "author": "",
   "license": "MIT",

@@ -378,16 +378,18 @@ app.get('/healthz', (req, res) => res.json({ ok: true, pid: process.pid, host: o
 
 app.listen(LISTEN_PORT, LISTEN_ADDR, () => {
   console.log(`litert gateway listening on ${LISTEN_ADDR}:${LISTEN_PORT} -> bin=${LITERT_BIN}`);
-  if (secretResult && secretResult.created) {
-    const modelDisplay = process.env.LITERT_MODEL || DEFAULT_MODEL || '(none)';
-    getPublicIp((ip) => {
-      console.log('=== LitertProxy initialized ===');
-      console.log(`IP: ${ip}`);
-      console.log(`AUTH_TOKEN: ${process.env.AUTH_TOKEN}`);
-      console.log(`MODEL: ${modelDisplay}`);
-      console.log('==============================');
-    });
-  }
+  const modelDisplay = process.env.LITERT_MODEL || DEFAULT_MODEL || '(none)';
+  getPublicIp((ip) => {
+    console.log('=== LitertProxy info ===');
+    console.log(`IP: ${ip}`);
+    if (secretResult && secretResult.created) {
+      console.log('AUTH_TOKEN: (generated) ' + process.env.AUTH_TOKEN);
+    } else {
+      console.log('AUTH_TOKEN: (existing) ' + (process.env.AUTH_TOKEN || '(none)'));
+    }
+    console.log(`MODEL: ${modelDisplay}`);
+    console.log('========================');
+  });
 });
 
 // Ollama-style endpoint: /api/generate
