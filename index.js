@@ -14,6 +14,12 @@ app.use(express.json({ limit: '1mb' }));
 // Ensure a persistent secret is present on first run
 function ensureSecretSync() {
   const envPath = path.join(process.cwd(), '.env');
+  // If user explicitly disabled auth via AUTH_REQUIRED=0/false, do not create a token
+  const rawAuthRequired = process.env.AUTH_REQUIRED;
+  if (rawAuthRequired !== undefined && (rawAuthRequired === '0' || rawAuthRequired.toLowerCase() === 'false')) {
+    return { created: false };
+  }
+
   // if already in environment, nothing to do
   if (process.env.AUTH_TOKEN && process.env.AUTH_TOKEN !== '') return { created: false };
 
@@ -74,6 +80,12 @@ const LITERT_BIN = process.env.LITERT_BIN || 'litert-lm';
 const DEFAULT_MODEL = process.env.LITERT_MODEL || '';
 const LITERT_ARGS = process.env.LITERT_ARGS || '';
 const AUTH_TOKEN = process.env.AUTH_TOKEN || '';
+const AUTH_REQUIRED = (() => {
+  if (process.env.AUTH_REQUIRED !== undefined) {
+    return !(process.env.AUTH_REQUIRED === '0' || process.env.AUTH_REQUIRED.toLowerCase() === 'false');
+  }
+  return !!AUTH_TOKEN;
+})();
 const LISTEN_ADDR = process.env.LISTEN_ADDR || '0.0.0.0';
 const LISTEN_PORT = process.env.LISTEN_PORT || 8080;
 const MAX_CONCURRENCY = parseInt(process.env.MAX_CONCURRENCY || '4', 10);
@@ -128,9 +140,9 @@ function splitArgs(s) {
 }
 
 app.post('/v1/generate', async (req, res) => {
-  if (AUTH_TOKEN) {
+  if (AUTH_REQUIRED) {
     const h = req.header('authorization') || '';
-    if (h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
+    if (!AUTH_TOKEN || h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
   }
   const body = req.body || {};
   const prompt = body.prompt || body.input || '';
@@ -149,9 +161,9 @@ app.post('/v1/generate', async (req, res) => {
 
 // OpenAI-compatible Chat Completions endpoint (basic compatibility)
 app.post('/v1/chat/completions', async (req, res) => {
-  if (AUTH_TOKEN) {
+  if (AUTH_REQUIRED) {
     const h = req.header('authorization') || '';
-    if (h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
+    if (!AUTH_TOKEN || h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
   }
   const body = req.body || {};
   const messages = body.messages;
@@ -226,9 +238,9 @@ app.post('/v1/chat/completions', async (req, res) => {
 
 // OpenAI-compatible Completions endpoint (basic compatibility)
 app.post('/v1/completions', async (req, res) => {
-  if (AUTH_TOKEN) {
+  if (AUTH_REQUIRED) {
     const h = req.header('authorization') || '';
-    if (h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
+    if (!AUTH_TOKEN || h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
   }
   const body = req.body || {};
   const prompt = body.prompt || '';
@@ -377,7 +389,9 @@ function invokeLitertStream(model, prompt, opts, onChunk, onError, onClose) {
 app.get('/healthz', (req, res) => res.json({ ok: true, pid: process.pid, host: os.hostname() }));
 
 app.listen(LISTEN_PORT, LISTEN_ADDR, () => {
+  const localIp = getLocalIp();
   console.log(`litert gateway listening on ${LISTEN_ADDR}:${LISTEN_PORT} -> bin=${LITERT_BIN}`);
+  console.log(`Accessible at: http://${localIp}:${LISTEN_PORT}`);
   const modelDisplay = process.env.LITERT_MODEL || DEFAULT_MODEL || '(none)';
   getPublicIp((ip) => {
     console.log('=== LitertProxy info ===');
