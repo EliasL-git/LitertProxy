@@ -2,11 +2,73 @@ require('dotenv').config();
 const express = require('express');
 const { spawn } = require('child_process');
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
 const crypto = require('crypto');
 const tools = require('./tools');
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
+
+// Ensure a persistent secret is present on first run
+function ensureSecretSync() {
+  const envPath = path.join(process.cwd(), '.env');
+  // if already in environment, nothing to do
+  if (process.env.AUTH_TOKEN && process.env.AUTH_TOKEN !== '') return { created: false };
+
+  let envText = '';
+  if (fs.existsSync(envPath)) {
+    try { envText = fs.readFileSync(envPath, 'utf8'); } catch (e) { envText = ''; }
+    // if AUTH_TOKEN exists in file, load it
+    const m = envText.match(/^AUTH_TOKEN=(.*)$/m);
+    if (m && m[1]) {
+      process.env.AUTH_TOKEN = m[1].trim();
+      return { created: false };
+    }
+  }
+
+  const secret = crypto.randomBytes(24).toString('hex');
+  // Append or create .env with secure mode
+  if (envText && envText.trim() !== '') {
+    envText = envText.replace(/\r?\n$/, '') + `\nAUTH_TOKEN=${secret}\n`;
+  } else {
+    envText = `AUTH_TOKEN=${secret}\nLITERT_MODEL=${process.env.LITERT_MODEL || ''}\n`;
+  }
+  try {
+    fs.writeFileSync(envPath, envText, { mode: 0o600 });
+  } catch (e) {
+    // best-effort write; ignore errors
+  }
+  process.env.AUTH_TOKEN = secret;
+  return { created: true, secret };
+}
+
+function getPublicIp(callback) {
+  const url = 'https://api.ipify.org?format=json';
+  const req = https.get(url, { timeout: 2000 }, (res) => {
+    let body = '';
+    res.on('data', (d) => body += d.toString());
+    res.on('end', () => {
+      try { const j = JSON.parse(body); if (j.ip) return callback(j.ip); } catch (e) {}
+      callback(getLocalIp());
+    });
+  });
+  req.on('error', () => callback(getLocalIp()));
+  req.on('timeout', () => { req.destroy(); callback(getLocalIp()); });
+}
+
+function getLocalIp() {
+  const ifs = os.networkInterfaces();
+  for (const k of Object.keys(ifs)) {
+    for (const iface of ifs[k]) {
+      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+    }
+  }
+  return '127.0.0.1';
+}
+
+const secretResult = ensureSecretSync();
 
 const LITERT_BIN = process.env.LITERT_BIN || 'litert-lm';
 const DEFAULT_MODEL = process.env.LITERT_MODEL || '';
@@ -316,6 +378,16 @@ app.get('/healthz', (req, res) => res.json({ ok: true, pid: process.pid, host: o
 
 app.listen(LISTEN_PORT, LISTEN_ADDR, () => {
   console.log(`litert gateway listening on ${LISTEN_ADDR}:${LISTEN_PORT} -> bin=${LITERT_BIN}`);
+  if (secretResult && secretResult.created) {
+    const modelDisplay = process.env.LITERT_MODEL || DEFAULT_MODEL || '(none)';
+    getPublicIp((ip) => {
+      console.log('=== LitertProxy initialized ===');
+      console.log(`IP: ${ip}`);
+      console.log(`AUTH_TOKEN: ${process.env.AUTH_TOKEN}`);
+      console.log(`MODEL: ${modelDisplay}`);
+      console.log('==============================');
+    });
+  }
 });
 
 // Ollama-style endpoint: /api/generate
