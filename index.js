@@ -11,46 +11,7 @@ const tools = require('./tools');
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
-// Ensure a persistent secret is present on first run
-function ensureSecretSync() {
-  const envPath = path.join(process.cwd(), '.env');
-  // New policy: do NOT auto-create a token on first run.
-  // Only load an existing AUTH_TOKEN from environment or .env, or create one
-  // if the process was started with the `--maketoken` flag.
-
-  // If AUTH_TOKEN already provided in the environment, nothing to do
-  if (process.env.AUTH_TOKEN && process.env.AUTH_TOKEN !== '') return { created: false };
-
-  let envText = '';
-  if (fs.existsSync(envPath)) {
-    try { envText = fs.readFileSync(envPath, 'utf8'); } catch (e) { envText = ''; }
-    // if AUTH_TOKEN exists in file, load it
-    const m = envText.match(/^AUTH_TOKEN=(.*)$/m);
-    if (m && m[1]) {
-      process.env.AUTH_TOKEN = m[1].trim();
-      return { created: false };
-    }
-  }
-
-  // Only create a token when explicitly requested via --maketoken
-  const makeToken = Array.isArray(process.argv) && process.argv.includes('--maketoken');
-  if (!makeToken) return { created: false };
-
-  const secret = crypto.randomBytes(24).toString('hex');
-  // Append or create .env with secure mode
-  if (envText && envText.trim() !== '') {
-    envText = envText.replace(/\r?\n$/, '') + `\nAUTH_TOKEN=${secret}\n`;
-  } else {
-    envText = `AUTH_TOKEN=${secret}\nLITERT_MODEL=${process.env.LITERT_MODEL || ''}\n`;
-  }
-  try {
-    fs.writeFileSync(envPath, envText, { mode: 0o600 });
-  } catch (e) {
-    // best-effort write; ignore errors
-  }
-  process.env.AUTH_TOKEN = secret;
-  return { created: true, secret };
-}
+// AUTH/TOKEN feature removed per user request: no token generation or enforcement.
 
 function getPublicIp(callback) {
   const url = 'https://api.ipify.org?format=json';
@@ -76,22 +37,11 @@ function getLocalIp() {
   return '127.0.0.1';
 }
 
-const secretResult = ensureSecretSync();
-
 const LITERT_BIN = process.env.LITERT_BIN || 'litert-lm';
 const DEFAULT_MODEL = process.env.LITERT_MODEL || '';
 const LITERT_ARGS = process.env.LITERT_ARGS || '';
-const AUTH_TOKEN = process.env.AUTH_TOKEN || '';
-const AUTH_REQUIRED = (() => {
-  // Default: auth disabled unless explicitly enabled via AUTH_REQUIRED env var
-  if (process.env.AUTH_REQUIRED !== undefined) {
-    const v = process.env.AUTH_REQUIRED.toString().toLowerCase();
-    return (v === '1' || v === 'true' || v === 'yes');
-  }
-  // If AUTH_TOKEN is explicitly provided in the environment, enable auth
-  if (process.env.AUTH_TOKEN && process.env.AUTH_TOKEN !== '') return true;
-  return false;
-})();
+// Auth/token feature disabled: AUTH_REQUIRED always false
+const AUTH_REQUIRED = false;
 const LISTEN_ADDR = process.env.LISTEN_ADDR || '0.0.0.0';
 const LISTEN_PORT = process.env.LISTEN_PORT || 8080;
 const MAX_CONCURRENCY = parseInt(process.env.MAX_CONCURRENCY || '4', 10);
@@ -402,11 +352,7 @@ app.listen(LISTEN_PORT, LISTEN_ADDR, () => {
   getPublicIp((ip) => {
     console.log('=== LitertProxy info ===');
     console.log(`IP: ${ip}`);
-    if (secretResult && secretResult.created) {
-      console.log('AUTH_TOKEN: (generated) ' + process.env.AUTH_TOKEN);
-    } else {
-      console.log('AUTH_TOKEN: (existing) ' + (process.env.AUTH_TOKEN || '(none)'));
-    }
+    console.log('AUTH: disabled');
     console.log(`MODEL: ${modelDisplay}`);
     console.log('========================');
   });
