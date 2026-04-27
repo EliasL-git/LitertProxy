@@ -14,13 +14,11 @@ app.use(express.json({ limit: '1mb' }));
 // Ensure a persistent secret is present on first run
 function ensureSecretSync() {
   const envPath = path.join(process.cwd(), '.env');
-  // If user explicitly disabled auth via AUTH_REQUIRED=0/false, do not create a token
-  const rawAuthRequired = process.env.AUTH_REQUIRED;
-  if (rawAuthRequired !== undefined && (rawAuthRequired === '0' || rawAuthRequired.toLowerCase() === 'false')) {
-    return { created: false };
-  }
+  // New policy: do NOT auto-create a token on first run.
+  // Only load an existing AUTH_TOKEN from environment or .env, or create one
+  // if the process was started with the `--maketoken` flag.
 
-  // if already in environment, nothing to do
+  // If AUTH_TOKEN already provided in the environment, nothing to do
   if (process.env.AUTH_TOKEN && process.env.AUTH_TOKEN !== '') return { created: false };
 
   let envText = '';
@@ -33,6 +31,10 @@ function ensureSecretSync() {
       return { created: false };
     }
   }
+
+  // Only create a token when explicitly requested via --maketoken
+  const makeToken = Array.isArray(process.argv) && process.argv.includes('--maketoken');
+  if (!makeToken) return { created: false };
 
   const secret = crypto.randomBytes(24).toString('hex');
   // Append or create .env with secure mode
@@ -417,6 +419,11 @@ app.post('/api/generate', async (req, res) => {
   const model = body.model || DEFAULT_MODEL;
   const prompt = body.prompt || body.input || '';
   if (!prompt) return res.status(400).json({ error: 'prompt required' });
+  // Ollama-compatible behavior:
+  // - if stream=true, send SSE events with cumulative `response` and `done: false` until finished
+  // - if not streaming, return full generation object described in Ollama docs
+
+  const createdAt = new Date().toISOString();
 
   if (body.stream) {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -425,14 +432,40 @@ app.post('/api/generate', async (req, res) => {
     res.flushHeaders();
 
     await enqueue(() => new Promise((resolveStream) => {
+      let aggregated = '';
+      const start = Date.now();
       const child = invokeLitertStream(model, prompt, { max_tokens: body.max_tokens, temperature: body.temperature }, (chunk) => {
-        // send JSON line per chunk
-        const obj = { id: null, object: 'token', text: chunk };
+        aggregated += chunk;
+        const obj = {
+          model,
+          created_at: createdAt,
+          response: aggregated,
+          thinking: null,
+          done: false,
+          done_reason: null
+        };
         res.write(`data: ${JSON.stringify(obj)}\n\n`);
       }, (err) => {
         res.write(`data: ${JSON.stringify({ error: String(err) })}\n\n`);
       }, (code) => {
-        res.write('data: [DONE]\n\n');
+        const end = Date.now();
+        const totalDuration = (end - start) * 1e6; // nanoseconds
+        const finalObj = {
+          model,
+          created_at: createdAt,
+          response: aggregated,
+          thinking: null,
+          done: true,
+          done_reason: code === 0 ? 'completed' : 'error',
+          total_duration: totalDuration,
+          load_duration: 0,
+          prompt_eval_count: null,
+          prompt_eval_duration: null,
+          eval_count: aggregated.length ? aggregated.split(/\s+/).length : 0,
+          eval_duration: null,
+          logprobs: null
+        };
+        res.write(`data: ${JSON.stringify(finalObj)}\n\n`);
         try { res.end(); } catch (e) {}
         resolveStream();
       });
@@ -443,8 +476,27 @@ app.post('/api/generate', async (req, res) => {
   }
 
   try {
+    const start = Date.now();
     const out = await enqueue(() => invokeLitert(model, prompt, { max_tokens: body.max_tokens, temperature: body.temperature }));
-    res.json({ model, output: out.output, stderr: out.stderr, exitCode: out.exitCode });
+    const end = Date.now();
+    const totalDuration = (end - start) * 1e6; // ns
+    const responseText = out.output || '';
+    const result = {
+      model,
+      created_at: createdAt,
+      response: responseText,
+      thinking: null,
+      done: true,
+      done_reason: out.timedOut ? 'timeout' : 'completed',
+      total_duration: totalDuration,
+      load_duration: 0,
+      prompt_eval_count: null,
+      prompt_eval_duration: null,
+      eval_count: responseText.length ? responseText.split(/\s+/).length : 0,
+      eval_duration: null,
+      logprobs: null
+    };
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -466,7 +518,10 @@ app.get('/api/models', (req, res) => {
 // Ollama compatibility endpoints (common paths)
 app.get('/version', (req, res) => {
   // Report a compatible Ollama version so clients that check version succeed
-  res.json({ version: process.env.OLLAMA_COMPAT_VERSION || '0.6.4' });
+  const version = process.env.OLLAMA_COMPAT_VERSION || '0.6.4';
+  const git = process.env.OLLAMA_COMPAT_GIT || null;
+  const build = process.env.OLLAMA_COMPAT_BUILD || null;
+  res.json({ version, git, build });
 });
 
 app.get('/models', (req, res) => {
@@ -475,4 +530,12 @@ app.get('/models', (req, res) => {
   const list = modelsEnv ? modelsEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
   const models = list.map((m) => ({ id: m, name: m, description: `Proxy to LiteRT model ${m}`, default: m === (process.env.LITERT_MODEL || '') }));
   res.json(models);
+});
+
+// Also expose /api/version which some clients check
+app.get('/api/version', (req, res) => {
+  const version = process.env.OLLAMA_COMPAT_VERSION || '0.6.4';
+  const git = process.env.OLLAMA_COMPAT_GIT || null;
+  const build = process.env.OLLAMA_COMPAT_BUILD || null;
+  res.json({ version, git, build });
 });
