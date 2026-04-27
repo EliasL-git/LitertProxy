@@ -1,0 +1,15 @@
+{
+  "name": "litertproxy",
+  "version": "0.1.0",
+  "description": "Lightweight gateway proxy for LiteRT CLI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.1.4"
+  }
+}
