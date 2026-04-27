@@ -11,7 +11,7 @@ Usage
 - `LITERT_MODEL` (optional default model name)
 - `AUTH_TOKEN` (optional bearer token for simple auth)
  - `AUTH_TOKEN` (optional bearer token for simple auth)
- - `AUTH_REQUIRED` (optional: set to `false` or `0` to disable auth checks and allow anonymous access)
+ - `AUTH_REQUIRED` (optional: set to `true`, `1`, or `yes` to require auth. Default: auth is disabled unless `AUTH_REQUIRED` is set or `AUTH_TOKEN` is provided.)
 - `LISTEN_ADDR` (default `0.0.0.0`)
 - `LISTEN_PORT` (default `8080`)
 - `MAX_CONCURRENCY` (default `4`)

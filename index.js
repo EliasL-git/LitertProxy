@@ -81,10 +81,14 @@ const DEFAULT_MODEL = process.env.LITERT_MODEL || '';
 const LITERT_ARGS = process.env.LITERT_ARGS || '';
 const AUTH_TOKEN = process.env.AUTH_TOKEN || '';
 const AUTH_REQUIRED = (() => {
+  // Default: auth disabled unless explicitly enabled via AUTH_REQUIRED env var
   if (process.env.AUTH_REQUIRED !== undefined) {
-    return !(process.env.AUTH_REQUIRED === '0' || process.env.AUTH_REQUIRED.toLowerCase() === 'false');
+    const v = process.env.AUTH_REQUIRED.toString().toLowerCase();
+    return (v === '1' || v === 'true' || v === 'yes');
   }
-  return !!AUTH_TOKEN;
+  // If AUTH_TOKEN is explicitly provided in the environment, enable auth
+  if (process.env.AUTH_TOKEN && process.env.AUTH_TOKEN !== '') return true;
+  return false;
 })();
 const LISTEN_ADDR = process.env.LISTEN_ADDR || '0.0.0.0';
 const LISTEN_PORT = process.env.LISTEN_PORT || 8080;
