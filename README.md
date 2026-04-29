@@ -18,18 +18,19 @@ Quick run (host has `litert-lm` installed):
 
 ```bash
 npm ci
-LITERT_MODEL=gemma-4-E2B-it.litertlm node index.js
+LITERT_MODEL=litert-community/gemma-4-E2B-it-litert-lm node index.js
 ```
 
 Run in background (manual Node.js)
 
 ```bash
 # start foreground
+# install deps
 npm ci
-LITERT_MODEL=gemma-4-E2B-it.litertlm node index.js
+LITERT_MODEL=litert-community/gemma-4-E2B-it-litert-lm node index.js
 
 # or start in background with nohup
-nohup LITERT_MODEL=gemma-4-E2B-it.litertlm npm start >/dev/null 2>&1 &
+nohup LITERT_MODEL=litert-community/gemma-4-E2B-it-litert-lm npm start >/dev/null 2>&1 &
 
 # or use pm2 for process management
 npm install -g pm2
@@ -59,7 +60,7 @@ Example: Chat completion via curl
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"gemma-4-E2B-it.litertlm","messages":[{"role":"system","content":"You are helpful."},{"role":"user","content":"Say hello"}] }'
+  -d '{"model":"litert-community/gemma-4-E2B-it-litert-lm","messages":[{"role":"system","content":"You are helpful."},{"role":"user","content":"Say hello"}] }'
 ```
 
 Streaming examples
@@ -69,7 +70,7 @@ OpenAI-style streaming (chat completions): add `"stream": true` to the body. The
 ```bash
 curl -N -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"gemma-4-E2B-it.litertlm","stream": true,"messages":[{"role":"user","content":"Hello"}] }'
+  -d '{"model":"litert-community/gemma-4-E2B-it-litert-lm","stream": true,"messages":[{"role":"user","content":"Hello"}] }'
 ```
 
 Ollama-style streaming (`/api/generate`): request with `stream: true` and read SSE JSON lines.
@@ -77,7 +78,7 @@ Ollama-style streaming (`/api/generate`): request with `stream: true` and read S
 ```bash
 curl -N -X POST http://localhost:8080/api/generate \
   -H "Content-Type: application/json" \
-  -d '{"model":"gemma-4-E2B-it.litertlm","stream": true,"prompt":"Say hi" }'
+  -d '{"model":"litert-community/gemma-4-E2B-it-litert-lm","stream": true,"prompt":"Say hi" }'
 ```
 
 Models endpoint
@@ -93,7 +94,7 @@ curl http://localhost:8080/api/models
 Response:
 
 ```json
-{ "models": [ { "id": "gemma-4-E2B-it.litertlm", "name": "gemma-4-E2B-it.litertlm", "description": "Proxy to LiteRT model gemma-4-E2B-it.litertlm", "default": true } ] }
+{ "models": [ { "id": "litert-community/gemma-4-E2B-it-litert-lm", "name": "litert-community/gemma-4-E2B-it-litert-lm", "description": "Proxy to LiteRT model litert-community/gemma-4-E2B-it-litert-lm", "default": true } ] }
 ```
 
 **Copilot integration (quickstart)**
@@ -135,7 +136,7 @@ After=network.target
 Type=simple
 User=litert
 WorkingDirectory=/opt/litertproxy
-Environment=LITERT_MODEL=gemma-4-E2B-it.litertlm
+Environment=LITERT_MODEL=litert-community/gemma-4-E2B-it-litert-lm
 ExecStart=/usr/bin/node /opt/litertproxy/index.js
 Restart=always
 RestartSec=5
@@ -191,7 +192,7 @@ Example request (tools):
 ```json
 POST /v1/chat/completions
 {
-  "model":"gemma-4-E2B-it.litertlm",
+  "model":"litert-community/gemma-4-E2B-it-litert-lm",
   "messages":[{"role":"system","content":"You can call tools."},{"role":"user","content":"What time is it?"}],
   "functions":[{"name":"get_current_time","description":"Returns current time","parameters":{"type":"object","properties":{}}}]
 }
