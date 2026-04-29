@@ -1,6 +1,6 @@
 {
   "name": "litertproxy",
-  "version": "0.1.0",
+  "version": "0.12.6",
   "description": "Lightweight gateway proxy for LiteRT CLI",
   "main": "index.js",
   "scripts": {
