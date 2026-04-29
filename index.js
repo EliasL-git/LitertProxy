@@ -464,10 +464,9 @@ app.get('/api/models', (req, res) => {
 // Ollama compatibility endpoints (common paths)
 app.get('/version', (req, res) => {
   // Report a compatible Ollama version so clients that check version succeed
-  const version = process.env.OLLAMA_COMPAT_VERSION || '0.6.4';
-  const git = process.env.OLLAMA_COMPAT_GIT || null;
-  const build = process.env.OLLAMA_COMPAT_BUILD || null;
-  res.json({ version, git, build });
+  // Return only the `version` property to match Ollama's /api/version schema.
+  const version = process.env.OLLAMA_COMPAT_VERSION || '0.12.6';
+  res.json({ version });
 });
 
 app.get('/models', (req, res) => {
@@ -480,8 +479,7 @@ app.get('/models', (req, res) => {
 
 // Also expose /api/version which some clients check
 app.get('/api/version', (req, res) => {
-  const version = process.env.OLLAMA_COMPAT_VERSION || '0.6.4';
-  const git = process.env.OLLAMA_COMPAT_GIT || null;
-  const build = process.env.OLLAMA_COMPAT_BUILD || null;
-  res.json({ version, git, build });
+  // Return only the `version` property to match Ollama OpenAPI spec
+  const version = process.env.OLLAMA_COMPAT_VERSION || '0.12.6';
+  res.json({ version });
 });
