@@ -42,7 +42,8 @@ const LITERT_BIN = process.env.LITERT_BIN || 'litert-lm';
 const DEFAULT_MODEL = process.env.LITERT_MODEL || '';
 const LITERT_ARGS = process.env.LITERT_ARGS || '';
 // Auth/token feature removed: no token generation or enforcement.
-const LISTEN_ADDR = process.env.LISTEN_ADDR || '0.0.0.0';
+// Default to a non-loopback local IP so the service is reachable on the LAN
+const LISTEN_ADDR = process.env.LISTEN_ADDR || getLocalIp();
 const LISTEN_PORT = process.env.LISTEN_PORT || 8080;
 const MAX_CONCURRENCY = parseInt(process.env.MAX_CONCURRENCY || '4', 10);
 const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '120000', 10);
