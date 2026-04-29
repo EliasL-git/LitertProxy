@@ -8,11 +8,8 @@ Usage
 2. Configure environment variables:
 
 - `LITERT_BIN` (default `litert-lm`)
-- `LITERT_MODEL` (optional default model name)
-- `AUTH_TOKEN` (optional bearer token for simple auth)
- - `AUTH_TOKEN` (optional bearer token for simple auth)
- - `AUTH_REQUIRED` (optional: set to `true`, `1`, or `yes` to require auth. Default: auth is disabled unless `AUTH_REQUIRED` is set or `AUTH_TOKEN` is provided.)
-- `LISTEN_ADDR` (default `0.0.0.0`)
+-- `LITERT_MODEL` (optional default model name)
+-- `LISTEN_ADDR` (default `0.0.0.0`)
 - `LISTEN_PORT` (default `8080`)
 - `MAX_CONCURRENCY` (default `4`)
 - `REQUEST_TIMEOUT_MS` (default `120000` milliseconds)
@@ -21,7 +18,7 @@ Quick run (host has `litert-lm` installed):
 
 ```bash
 npm ci
-AUTH_TOKEN=secret LITERT_MODEL=gemma-4-E2B-it.litertlm node index.js
+LITERT_MODEL=gemma-4-E2B-it.litertlm node index.js
 ```
 
 Run in background (manual Node.js)
@@ -29,10 +26,10 @@ Run in background (manual Node.js)
 ```bash
 # start foreground
 npm ci
-AUTH_TOKEN=secret LITERT_MODEL=gemma-4-E2B-it.litertlm node index.js
+LITERT_MODEL=gemma-4-E2B-it.litertlm node index.js
 
 # or start in background with nohup
-nohup AUTH_TOKEN=secret LITERT_MODEL=gemma-4-E2B-it.litertlm npm start >/dev/null 2>&1 &
+nohup LITERT_MODEL=gemma-4-E2B-it.litertlm npm start >/dev/null 2>&1 &
 
 # or use pm2 for process management
 npm install -g pm2
@@ -62,7 +59,6 @@ Example: Chat completion via curl
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $AUTH_TOKEN" \
   -d '{"model":"gemma-4-E2B-it.litertlm","messages":[{"role":"system","content":"You are helpful."},{"role":"user","content":"Say hello"}] }'
 ```
 
@@ -73,7 +69,6 @@ OpenAI-style streaming (chat completions): add `"stream": true` to the body. The
 ```bash
 curl -N -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $AUTH_TOKEN" \
   -d '{"model":"gemma-4-E2B-it.litertlm","stream": true,"messages":[{"role":"user","content":"Hello"}] }'
 ```
 
@@ -109,7 +104,7 @@ Response:
 # install deps
 npm ci
 # start (reads .env)
-AUTH_TOKEN=replace_me_with_a_strong_secret LITERT_MODEL=gemma-4-E2B-it.litertlm npm start
+LITERT_MODEL=replace_me_with_a_strong_secret npm start
 ```
 
 Run manually or with a process manager (no Docker required):
@@ -117,10 +112,10 @@ Run manually or with a process manager (no Docker required):
 ```bash
 # start directly
 npm ci
-AUTH_TOKEN=replace_me_with_a_strong_secret LITERT_MODEL=gemma-4-E2B-it.litertlm npm start
+LITERT_MODEL=replace_me_with_a_strong_secret npm start
 
 # or run in background
-nohup AUTH_TOKEN=replace_me_with_a_strong_secret npm start >/dev/null 2>&1 &
+nohup npm start >/dev/null 2>&1 &
 
 # or use pm2
 pm2 start index.js --name litertproxy --update-env
@@ -140,7 +135,6 @@ After=network.target
 Type=simple
 User=litert
 WorkingDirectory=/opt/litertproxy
-Environment=AUTH_TOKEN=replace_me_with_a_strong_secret
 Environment=LITERT_MODEL=gemma-4-E2B-it.litertlm
 ExecStart=/usr/bin/node /opt/litertproxy/index.js
 Restart=always
@@ -155,7 +149,7 @@ WantedBy=multi-user.target
 Add to crontab (`crontab -e`) to ensure the process is running every 5 minutes:
 
 ```cron
-*/5 * * * * pgrep -f "node .*index.js" > /dev/null || (cd /opt/litertproxy && AUTH_TOKEN=replace_me_with_a_strong_secret nohup npm start >/dev/null 2>&1 &)
+*/5 * * * * pgrep -f "node .*index.js" > /dev/null || (cd /opt/litertproxy && nohup npm start >/dev/null 2>&1 &)
 ```
 
 3) Configure Copilot / tools to use LitertProxy
@@ -169,7 +163,7 @@ export OPENAI_API_KEY="replace_me_with_a_strong_secret"
 
 Restart VS Code so the Copilot extension picks up environment changes. Many editors and tools respect `OPENAI_API_BASE` and `OPENAI_API_KEY`.
 
-- Ollama-compatible clients: if a client (or Copilot UI) lets you add an Ollama endpoint, point it to `http://<host>:8080/api/generate` and use the token from `AUTH_TOKEN` as the API key.
+- Ollama-compatible clients: if a client (or Copilot UI) lets you add an Ollama endpoint, point it to `http://<host>:8080/api/generate`.
 
 4) Using Copilot features (agentic planning, tools)
 
@@ -208,6 +202,6 @@ The gateway ships with `tools.js` containing safe example tools: `get_current_ti
 
 Security & deployment notes
 
-- This gateway uses a simple bearer `AUTH_TOKEN` for access control; put it behind a firewall or reverse proxy (nginx) for production and enable TLS.
+This gateway does not include built-in bearer token auth; put it behind a firewall or reverse proxy (nginx) for production and enable TLS.
 - For high performance, run one gateway per GPU/CPU partition and tune `MAX_CONCURRENCY` to avoid CPU contention.
 -- Consider running a systemd service or a process manager like `pm2` to manage restarts.

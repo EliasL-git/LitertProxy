@@ -7,6 +7,7 @@ const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
 const tools = require('./tools');
+const pkg = require('./package.json');
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -40,8 +41,7 @@ function getLocalIp() {
 const LITERT_BIN = process.env.LITERT_BIN || 'litert-lm';
 const DEFAULT_MODEL = process.env.LITERT_MODEL || '';
 const LITERT_ARGS = process.env.LITERT_ARGS || '';
-// Auth/token feature disabled: AUTH_REQUIRED always false
-const AUTH_REQUIRED = false;
+// Auth/token feature removed: no token generation or enforcement.
 const LISTEN_ADDR = process.env.LISTEN_ADDR || '0.0.0.0';
 const LISTEN_PORT = process.env.LISTEN_PORT || 8080;
 const MAX_CONCURRENCY = parseInt(process.env.MAX_CONCURRENCY || '4', 10);
@@ -96,10 +96,6 @@ function splitArgs(s) {
 }
 
 app.post('/v1/generate', async (req, res) => {
-  if (AUTH_REQUIRED) {
-    const h = req.header('authorization') || '';
-    if (!AUTH_TOKEN || h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
-  }
   const body = req.body || {};
   const prompt = body.prompt || body.input || '';
   if (!prompt) return res.status(400).json({ error: 'prompt required' });
@@ -117,10 +113,7 @@ app.post('/v1/generate', async (req, res) => {
 
 // OpenAI-compatible Chat Completions endpoint (basic compatibility)
 app.post('/v1/chat/completions', async (req, res) => {
-  if (AUTH_REQUIRED) {
-    const h = req.header('authorization') || '';
-    if (!AUTH_TOKEN || h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
-  }
+  
   const body = req.body || {};
   const messages = body.messages;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -194,10 +187,7 @@ app.post('/v1/chat/completions', async (req, res) => {
 
 // OpenAI-compatible Completions endpoint (basic compatibility)
 app.post('/v1/completions', async (req, res) => {
-  if (AUTH_REQUIRED) {
-    const h = req.header('authorization') || '';
-    if (!AUTH_TOKEN || h !== `Bearer ${AUTH_TOKEN}`) return res.status(401).json({ error: 'unauthorized' });
-  }
+  
   const body = req.body || {};
   const prompt = body.prompt || '';
   if (!prompt) return res.status(400).json({ error: 'prompt required' });
@@ -465,7 +455,7 @@ app.get('/api/models', (req, res) => {
 app.get('/version', (req, res) => {
   // Report a compatible Ollama version so clients that check version succeed
   // Return only the `version` property to match Ollama's /api/version schema.
-  const version = process.env.OLLAMA_COMPAT_VERSION || '0.12.6';
+  const version = process.env.OLLAMA_COMPAT_VERSION || pkg && pkg.version || '0.12.6';
   res.json({ version });
 });
 
@@ -480,6 +470,6 @@ app.get('/models', (req, res) => {
 // Also expose /api/version which some clients check
 app.get('/api/version', (req, res) => {
   // Return only the `version` property to match Ollama OpenAPI spec
-  const version = process.env.OLLAMA_COMPAT_VERSION || '0.12.6';
+  const version = process.env.OLLAMA_COMPAT_VERSION || pkg && pkg.version || '0.12.6';
   res.json({ version });
 });
